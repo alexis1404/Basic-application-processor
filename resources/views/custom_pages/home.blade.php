@@ -38,11 +38,3 @@
         @endif
     </div>
     @endsection
-
-@section('footer')
-    <div class="footer">
-        <div class="container">
-            <h4 align="center" class="main-text">made in Shurik</h4>
-        </div>
-    </div>
-@endsection
