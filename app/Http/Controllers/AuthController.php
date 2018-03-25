@@ -3,13 +3,17 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Hash;
-use Auth;
-use App\User;
-use App\Role;
+use App\Services\AuthService;
 
 class AuthController extends Controller
 {
+    private $auth;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->auth = $authService;
+    }
+
     /*
      * Render register page
      * @return view
@@ -35,22 +39,7 @@ class AuthController extends Controller
      */
     public function regForm(Request $request)
     {
-        $new_user = new User();
-
-        $new_user->name = $request->name;
-        $new_user->email = $request->email;
-        $new_user->password = Hash::make($request->password);
-
-        $new_user->role()->associate(Role::find(1));
-
-        $new_user->save();
-
-        /**
-         * The warning message.
-         *
-         * @var string
-         */
-        $message = 'Your account has been successfully registered';
+        $message = $this->auth->userRegistration($request->name, $request->email, $request->password);
 
         return redirect('/')->with('message', $message);
     }
@@ -68,14 +57,14 @@ class AuthController extends Controller
          * @var string
          */
         $message = 'Authentication not complete. Invalid data';
+        $actual_user = $this->auth->userLogin($request->email, $request->password);
 
-        if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
+        if ($actual_user){
 
-            $user = Auth::user();
-            if($user->role->id == 2){
+            if($actual_user->role->id == 2){
                 return redirect('/manager_page');
 
-            }elseif ($user->role->id == 1){
+            }elseif ($actual_user->role->id == 1){
                 return redirect('/user_page');
             }
 
@@ -90,7 +79,7 @@ class AuthController extends Controller
      */
     public function logout()
     {
-        Auth::logout();
+        $this->auth->userLogout();
 
         return redirect('/');
     }

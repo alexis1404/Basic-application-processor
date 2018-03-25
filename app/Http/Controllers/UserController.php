@@ -10,9 +10,17 @@ use App\Application;
 use Storage;
 use Auth;
 use Carbon\Carbon;
+use App\Services\UserService;
 
 class UserController extends Controller
 {
+    private $user_manager;
+
+    public function __construct(UserService $userService)
+    {
+        $this->user_manager = $userService;
+    }
+
     /*
      * Render user page
      * @return view
@@ -28,61 +36,27 @@ class UserController extends Controller
      */
     public function userForm(Request $request)
     {
-        if(!Auth::user()->applications->isEmpty()){
-            //check date interval
-            $last_application_data = Auth::user()->applications()->latest()->first()->created_at;
-
-            if($last_application_data->addDay(1) < Carbon::now()){
-
-                $this->createNewApplication($request);
-                return redirect('/');
-
-            }else{
-                /**
-                 * The warning message.
-                 *
-                 * @var string
-                 */
-                $message = 'You can create only one application in 24 hours!';
-                return redirect('/user_page')->with('message', $message);
-            }
-        }else{
-            $this->createNewApplication($request);
-            return redirect('/');
-        }
-
-    }
-
-    /*
-     * Create new application
-     * @param request
-     * @return void
-     */
-    public function createNewApplication($request)
-    {
         //validate request
         $this->validate($request, [
             'theme' => 'required',
             'message' => 'required'
         ]);
 
-        $application = new Application();
-        $user = Auth::user();
-
-        $application->theme = $request->theme;
-        $application->message = $request->message;
-
         $file = $request->file('attachment');
 
-        if($file && $file->isValid()) {
-            $url = Storage::disk('public')->put('', $file);
-            $application->attachment =  $url;
+        if($this->user_manager->createApplicationWithTimeCheck($request->theme, $request->message, $file)){
+            return redirect('/');
+        }else{
+            /**
+             * The warning message.
+             *
+             * @var string
+             */
+            $message = 'You can create only one application in 24 hours!';
+
+            return redirect('/user_page')->with('message', $message);
+
         }
 
-        $application->user()->associate($user);
-
-        $application->save();
-
-        Notification::send(User::where('email', env('TEST_EMAIL'))->get(), new SendApplication($application, $user));
     }
 }
